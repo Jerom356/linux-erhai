@@ -8,7 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
-#include "sm8750.dtsi"
+#include "sm8750-ipa.dtsi"
 #include "pm8010.dtsi"
 #include "pm8550.dtsi"
 #define PMK8550VE_SID 8
@@ -21,9 +21,9 @@
 // UNTESTED Device Port for Oneplus Pad 3
 
 /* This device doesn't have Modem DSP */
- /delete-node/ &mpss_mem;
- /delete-node/ &q6_mpss_dtb_mem;
- /delete-node/ &remoteproc_mpss;
+/delete-node/ &mpss_mem;
+/delete-node/ &q6_mpss_dtb_mem;
+/delete-node/ &remoteproc_mpss;
 
 / {
 	model = "OnePlus Pad 3";
@@ -133,7 +133,7 @@
 		};
 	};
 	reserved-memory {
-	        splash_region: splash_region@fc800000 {
+	        splash_region@fc800000 {
 			reg = <0x0 0xfc800000 0x0 0x2b00000>;
 			no-map;
 		};
@@ -1348,12 +1348,12 @@
     };
 }; */
 
-/* &ipa {
+&ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/sm8750/erhai/ipa_fws.mbn";
 	status = "okay";
-}; */
+};
 
 &swr1 {
 	status = "okay";

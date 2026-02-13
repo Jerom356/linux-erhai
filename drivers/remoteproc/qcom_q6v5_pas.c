@@ -1435,7 +1435,7 @@ static const struct qcom_pas_data sm8550_mpss_resource = {
 	.sysmon_name = "modem",
 	.ssctl_id = 0x12,
 	.smem_host_id = 1,
-	.region_assign_idx = 2,
+	.region_assign_idx = 3,
 	.region_assign_count = 1,
 	.region_assign_vmid = QCOM_SCM_VMID_MSS_MSA,
 };

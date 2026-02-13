@@ -485,3 +485,23 @@ const struct ipa_data ipa_data_v5_5 = {
 	.mem_data		= &ipa_mem_data,
 	.power_data		= &ipa_power_data,
 };
+static const struct ipa_mem_data ipa_mem_data_sm8750 = {
+	.local_count	= ARRAY_SIZE(ipa_mem_local_data),
+	.local		= ipa_mem_local_data,
+	.imem_addr	= 0x14688000,
+	.imem_size	= 0x00002000,
+	.smem_size	= 0x0000d800,
+};
+
+/* Configuration data for an sm8750 SoC. */
+const struct ipa_data ipa_data_v5_5_sm8750 = {
+	.version		= IPA_VERSION_5_5,
+	.qsb_count		= ARRAY_SIZE(ipa_qsb_data),
+	.qsb_data		= ipa_qsb_data,
+	.modem_route_count	= 11,
+	.endpoint_count		= ARRAY_SIZE(ipa_gsi_endpoint_data),
+	.endpoint_data		= ipa_gsi_endpoint_data,
+	.resource_data		= &ipa_resource_data,
+	.mem_data		= &ipa_mem_data_sm8750,
+	.power_data		= &ipa_power_data,
+};
