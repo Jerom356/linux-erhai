@@ -510,6 +510,8 @@ config KEYBOARD_OPENCORES
 	  To compile this driver as a module, choose M here; the
 	  module will be called opencores-kbd.
 
+source "drivers/input/keyboard/pogo_keyboard/Kconfig"
+
 config KEYBOARD_PINEPHONE
 	tristate "Pine64 PinePhone Keyboard"
 	depends on I2C && REGULATOR
