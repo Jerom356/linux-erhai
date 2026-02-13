@@ -1,0 +1,6 @@
+config TOUCHPANEL_NT36536_NF
+#	default y
+	tristate "Novatek NT36536 Non-flash SPI driver"
+	help
+	Say Y to enable driver for Novatek nt36536_noflash touch driver
+	Or M to compile as a module.

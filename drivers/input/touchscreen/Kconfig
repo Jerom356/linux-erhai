@@ -679,6 +679,8 @@ config TOUCHSCREEN_MTOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtouch.
 
+source "drivers/input/touchscreen/nt36536_nf/Kconfig"
+
 config TOUCHSCREEN_NOVATEK_NVT_TS
 	tristate "Novatek NT11205 touchscreen support"
 	depends on I2C
