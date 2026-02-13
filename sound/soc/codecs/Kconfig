@@ -710,6 +710,8 @@ config SND_SOC_AW88261
 	  boost converter can be adjusted smartly according to
 	  the input amplitude.
 
+source "sound/soc/codecs/aw882xx/Kconfig"
+
 config SND_SOC_AW88081
 	tristate "Soc Audio for awinic aw88081/aw88083"
 	depends on I2C
