@@ -1348,12 +1348,12 @@
     };
 }; */
 
-&ipa {
+/* &ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/sm8750/erhai/ipa_fws.mbn";
 	status = "okay";
-};
+}; */
 
 &swr1 {
 	status = "okay";
