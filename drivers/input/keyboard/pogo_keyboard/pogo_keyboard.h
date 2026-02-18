@@ -13,17 +13,14 @@
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-//#include <mt-plat/aee.h>
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-//#include <mt-plat/mtk_boot_common.h>
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
-
 #include <linux/fcntl.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
@@ -32,13 +29,9 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/uio.h>
-
 #include <linux/regulator/consumer.h>
-
-
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
-
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <linux/iio/consumer.h>
@@ -52,7 +45,9 @@
 
 #define TOUCH_FINGER_MAX    5
 
-// #define CONFIG_TOUCH_SCREEN //macro to enable touch screen mode for keyboard touchpad, or else mouse mode by default.
+#if (IS_ENABLED(CONFIG_KEYBOARD_POGO_INPUT_IS_TOUCH))
+#define CONFIG_TOUCH_SCREEN //macro to enable touch screen mode for keyboard touchpad, or else mouse mode by default.
+#endif
 
 #define TOUCH_X_MAX    4096
 #define TOUCH_Y_MAX    4096
@@ -210,7 +205,7 @@ enum {
     KEYBOARD_REPORT_UART_OPEN_EVENT,
     KEYBOARD_REPORT_UART_CLOSE_EVENT,
     KEYBOARD_REPORT_TP_DIST_EVENT,
-    POGO_KEYBOARD_EVENT_MAX, //add new event befor it
+    POGO_KEYBOARD_EVENT_MAX, //add new event before it
 };
 
 enum {
@@ -362,9 +357,6 @@ struct pogo_keyboard_data {
 
     struct drm_panel *active_panel;
     void *notifier_cookie;
-#if IS_ENABLED(CONFIG_DEVICE_MODULES_DRM_MEDIATEK) && defined(CONFIG_OPLUS_POGOPIN_FUNCTION)
-    struct notifier_block disp_notifier;
-#endif
 
     bool lcd_notify_reg;
     struct delayed_work lcd_notify_reg_work;
@@ -457,4 +449,4 @@ extern ssize_t pogo_tty_write(struct file *file, const char __user *buf, size_t 
 extern void kpdmcu_fw_data_version_thread(struct work_struct *work);
 extern void kpdmcu_fw_update_thread(struct work_struct *work);
 
-#endif
+#endif // __KEYBOARD_CORE__H__

@@ -1,10 +1,20 @@
 #
 # The pogo keyboard drivers.
 #
-config KEYBOARD_POGO
-	tristate "Pogo Keypad Support"
-	help
-	  Say Y here if you want to use the keypad.
-	  If unuse, say N.
-	  To compile this driver as a module, choose M here: the
-	  module will be called.
+menuconfig KEYBOARD_POGO
+    tristate "Pogo Keypad Support"
+    help
+      Say Y here if you want to use the keypad.
+      To compile this driver as a module, choose M here.
+
+if KEYBOARD_POGO
+
+config KEYBOARD_POGO_INPUT_IS_TOUCH
+    bool "Configure touchpad input as touchscreen (default is mouse)"
+    default n
+    help
+      Say Y here to process the input in touchscreen mode (absolute coordinates)
+      for the keyboard touchpad. If N, it will behave as a standard
+      mouse (relative movement).
+
+endif # KEYBOARD_POGO

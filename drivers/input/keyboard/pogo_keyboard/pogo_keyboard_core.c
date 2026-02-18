@@ -20,16 +20,6 @@
 #include <linux/version.h>
 #include <linux/slab.h>
 #include "owb.h"
-// #include <soc/oplus/dft/kernel_fb.h>
-#define CONFIG_REMOVE_OPLUS_FUNCTION
-//#include <soc/oplus/system/oplus_project.h>
-
-
-#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
-#include <linux/soc/qcom/panel_event_notifier.h>
-#include <linux/msm_drm_notify.h>
-#include <drm/drm_panel.h>
-#endif
 
 #define KB_SN_HIDE_BIT_START   7
 #define KB_SN_HIDE_BIT_LEN  12
@@ -1345,6 +1335,25 @@ void pogo_keyboard_led_process(int code, int value)
     pogo_keyboard_event_send(event);
 }
 
+/*
+ * monitor lcd/screen on/off state.
+ * The below function was originally (downstream) used with
+ * Qualcomm's drm (panel) notifier. But I have a different use case.
+ * So, we will use suspend and resume to call for this function
+ */
+ void pogo_keyboard_sync_lcd_state(bool lcd_on_state)
+ {
+     if (lcd_on_state) {
+         kb_info("pogo_keyboard goto wakeup\n");
+         pogo_keyboard_event_send(KEYBOARD_HOST_LCD_ON_EVENT);
+     } else {
+         kb_info("pogo_keyboard goto sleep\n");
+         pogo_keyboard_event_send(KEYBOARD_HOST_LCD_OFF_EVENT);
+     }
+
+     return;
+ }
+
 static int pogo_keyboard_enable_uart_tx(int value)
 {
     if (pogo_keyboard_client->file_client == NULL)
@@ -1359,9 +1368,9 @@ static int pogo_keyboard_enable_uart_tx(int value)
     } else if (value == 0) {
         if (gpio_get_value(pogo_keyboard_client->tx_en_gpio) == 1) {
             kb_info("%d\n", value);
-            udelay(300); //for set mode valid
             gpio_set_value(pogo_keyboard_client->tx_en_gpio, 0);
             //gpio_direction_output(pogo_keyboard_client->tx_en_gpio, 0);
+            udelay(300); //for set mode valid
         }
     }
     return 0;
@@ -2381,126 +2390,9 @@ static int pogo_keyboard_init_callback(void *port, int type)
     return 0;
 }
 
-#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER) && defined(CONFIG_OPLUS_POGOPIN_FUNCTION)
-static void pogo_keyboard_drm_notifier_callback(enum panel_event_notifier_tag tag,
-    struct panel_event_notification *notification, void *priv)
-{
-    if (!notification) {
-        kb_err("Invalid notification\n");
-        return;
-    }
-
-    switch (notification->notif_type) {
-        case DRM_PANEL_EVENT_UNBLANK:
-            kb_info("event:%d pogo_keyboard goto wakeup\n", notification->notif_data.early_trigger);
-            if (!notification->notif_data.early_trigger) {
-                pogo_keyboard_sync_lcd_state(true);
-            }
-            break;
-        case DRM_PANEL_EVENT_BLANK:
-            kb_info("event:%d pogo_keyboard goto sleep\n", notification->notif_data.early_trigger);
-            if (!notification->notif_data.early_trigger) {
-                pogo_keyboard_sync_lcd_state(false);
-            }
-            break;
-        case DRM_PANEL_EVENT_BLANK_LP:
-            break;
-        case DRM_PANEL_EVENT_FPS_CHANGE:
-            break;
-        default:
-            break;
-    }
-}
-
-static int pogo_keyboard_register_drm_notify(void)
-{
-    int i = 0, count = 0;
-    struct device_node *np = NULL;
-    struct device_node *node = NULL;
-    struct drm_panel *panel = NULL;
-    void *cookie = NULL;
-
-    np = of_find_node_by_name(NULL, "oplus,dsi-display-dev");
-    if (!np) {
-        kb_err("device tree info. missing\n");
-        return 0;
-    }
-    count = of_count_phandle_with_args(np, "oplus,dsi-panel-primary", NULL);
-    if (count <= 0) {
-        kb_err("primary panel no found\n");
-        return 0;
-    }
-    for (i = 0; i < count; i++) {
-        node = of_parse_phandle(np, "oplus,dsi-panel-primary", i);
-        panel = of_drm_find_panel(node);
-        of_node_put(node);
-        if (!IS_ERR(panel)) {
-            pogo_keyboard_client->active_panel = panel;
-            kb_err("find active_panel\n");
-            break;
-        }
-    }
-
-    if (i >= count) {
-        kb_err("can't find active panel\n");
-        return -ENODEV;
-    }
-
-    cookie = panel_event_notifier_register(
-        PANEL_EVENT_NOTIFICATION_PRIMARY,
-        PANEL_EVENT_NOTIFIER_CLIENT_POGOPIN,
-        panel, &pogo_keyboard_drm_notifier_callback,
-        NULL);
-    if (!cookie) {
-        kb_err("Unable to register pogo_keyboard_panel_notifier\n");
-        return -EINVAL;
-    } else {
-        pogo_keyboard_client->notifier_cookie = cookie;
-        kb_info("success register pogo_keyboard_panel_notifier\n");
-    }
-    return 0;
-}
-#endif
-
-#if IS_ENABLED(CONFIG_DEVICE_MODULES_DRM_MEDIATEK) && defined(CONFIG_OPLUS_POGOPIN_FUNCTION)
-static int pogo_keyboard_mtk_disp_notifier_callback(struct notifier_block *nb,
-    unsigned long value, void *v)
-{
-    struct pogo_keyboard_data *pogo_data =
-        container_of(nb, struct pogo_keyboard_data, disp_notifier);
-    int *data = (int *)v;
-
-    if (pogo_data && v) {
-        if (value == MTK_DISP_EVENT_BLANK) {
-            if (*data == MTK_DISP_BLANK_UNBLANK) {
-                pogo_keyboard_sync_lcd_state(true);
-            }
-        } else if (value == MTK_DISP_EARLY_EVENT_BLANK) {
-            if (*data == MTK_DISP_BLANK_POWERDOWN) {
-                pogo_keyboard_sync_lcd_state(false);
-            }
-
-        }
-    } else {
-        kb_err("pogo_data or v is NULL!!!\n");
-        return -1;
-    }
-    return 0;
-}
-#endif
-
 static int pogo_keyboard_lcd_event_register(void)
 {
     int ret = 0;
-
-#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER) && defined(CONFIG_OPLUS_POGOPIN_FUNCTION)
-    ret = pogo_keyboard_register_drm_notify();
-#endif
-
-#if IS_ENABLED(CONFIG_DEVICE_MODULES_DRM_MEDIATEK) && defined(CONFIG_OPLUS_POGOPIN_FUNCTION)
-    pogo_keyboard_client->disp_notifier.notifier_call = pogo_keyboard_mtk_disp_notifier_callback;
-    mtk_disp_notifier_register("pogo_keyboard", &pogo_keyboard_client->disp_notifier);
-#endif
     return ret;
 }
 
@@ -2510,14 +2402,6 @@ static void pogo_keyboard_lcd_event_unregister(void)
         return;
     }
 
-#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER) && defined(CONFIG_OPLUS_POGOPIN_FUNCTION)
-    if (pogo_keyboard_client->active_panel && pogo_keyboard_client->notifier_cookie)
-        panel_event_notifier_unregister(pogo_keyboard_client->notifier_cookie);
-#endif
-
-#if IS_ENABLED(CONFIG_DEVICE_MODULES_DRM_MEDIATEK) && defined(CONFIG_OPLUS_POGOPIN_FUNCTION)
-    mtk_disp_notifier_unregister(&pogo_keyboard_client->disp_notifier);
-#endif
 }
 
 #define LCD_REG_RETRY_COUNT_MAX		100
@@ -2731,16 +2615,12 @@ static int pogo_keyboard_start_up_init(void)
     atomic_set(&pogo_keyboard_client->vcc_on, 0);
 
     hrtimer_setup(&pogo_keyboard_client->plug_timer, keyboard_core_plug_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-//  pogo_keyboard_client->plug_timer.function = keyboard_core_plug_hrtimer;
 
     hrtimer_setup(&pogo_keyboard_client->heartbeat_timer, keyboard_core_heartbeat_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-//  pogo_keyboard_client->heartbeat_timer.function = keyboard_core_heartbeat_hrtimer;
 
     hrtimer_setup(&pogo_keyboard_client->poweroff_timer, keyboard_core_poweroff_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-//  pogo_keyboard_client->poweroff_timer.function = keyboard_core_poweroff_hrtimer;
 
     hrtimer_setup(&pogo_keyboard_client->plugin_check_timer, keyboard_core_plugin_check_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-//  pogo_keyboard_client->plugin_check_timer.function = keyboard_core_plugin_check_hrtimer;
 
     return 0;
 }
@@ -3361,16 +3241,6 @@ static void pogo_keyboard_deinit_device_uevent(struct pogo_uevent *udev)
     }
 }
 
-#ifdef CONFIG_OPLUS_MTK_DRM_GKI_NOTIFY
-bool inline is_ftm_boot_mode(void)
-{
-    int boot_mode = 0;
-    boot_mode = get_boot_mode();
-
-    return (boot_mode == META_BOOT || boot_mode == FACTORY_BOOT) ? true : false;
-}
-#endif
-
 static int pogo_keyboard_plat_probe(struct platform_device *device)
 {
     int ret = 0;
@@ -3396,11 +3266,7 @@ static int pogo_keyboard_plat_probe(struct platform_device *device)
         pogo_keyboard_client->pogo_keyboard_task = NULL;
     }
     pogo_keyboard_client->plat_dev = device;
-#ifndef CONFIG_REMOVE_OPLUS_FUNCTION
-    pogo_keyboard_client->is_confidential = is_confidential();  //get confidential status.
-#else
     pogo_keyboard_client->is_confidential = false;
-#endif
     pogo_keyboard_start_up_init();
     ret = pogo_keyboard_get_dts_info(device);
     if (ret != 0) {
@@ -3466,7 +3332,7 @@ static int pogo_keyboard_plat_probe(struct platform_device *device)
         INIT_WORK(&pogo_keyboard_client->kpdmcu_fw_update_work, kpdmcu_fw_update_thread);
     }
 
-    kb_info("ok\n");
+    kb_info("Probe Success.\n");
 
     return 0;
 
@@ -3529,13 +3395,13 @@ static void pogo_keyboard_plat_remove(struct platform_device *device)
 
 static int pogo_keyboard_plat_suspend(struct platform_device *device)
 {
-    kb_info("\n");
+    pogo_keyboard_sync_lcd_state(false);
     return 0;
 }
 
 static int pogo_keyboard_plat_resume(struct platform_device *device)
 {
-    kb_info("\n");
+    pogo_keyboard_sync_lcd_state(true);
     return 0;
 }
 
