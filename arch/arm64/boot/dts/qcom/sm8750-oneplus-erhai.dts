@@ -25,6 +25,10 @@
 /delete-node/ &q6_mpss_dtb_mem;
 /delete-node/ &remoteproc_mpss;
 
+/* Oneplus changes for touchscreen (drive strength 6 -> 4) */
+/delete-node/ &qup_spi4_cs;
+/delete-node/ &qup_spi4_data_clk;
+
 / {
 	model = "OnePlus Pad 3";
 	compatible = "oneplus,erhai", "qcom,sm8750", "qcom,pakala";
@@ -33,6 +37,7 @@
 	aliases {
 		serial0 = &uart7;
 		serial1 = &uart14;
+		serial2 = &uart8;
 	};
 
 	wcd939x: audio-codec {
@@ -83,7 +88,7 @@
                         reg = <0x00 0xfc800000 0x00 0x2b00000>;
                         width = <2400>;
                         height = <3392>;
-                        stride = <(3392 * 4)>;
+                        stride = <(2400 * 4)>;
                         format = "a8r8g8b8";
 
                         clocks = <&gcc GCC_DISP_AHB_CLK>, <&gcc GCC_DISP_HF_AXI_CLK>;
@@ -190,6 +195,16 @@
 			debounce-interval = <15>;
 			linux,can-disable;
 			wakeup-source;
+		};
+		lid { // Suspend
+			label = "lid";
+			gpios = <&tlmm 97 GPIO_ACTIVE_LOW>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <97 GPIO_ACTIVE_HIGH>;
+			linux,input-type = <EV_SW>;
+			linux,code = <0>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
 		};
 	};
 
@@ -440,10 +455,11 @@
 						   RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_l9b_2p9: ldo9 {
-			regulator-name = "vreg_l9b_2p9";
-			regulator-min-microvolt = <2960000>;
-			regulator-max-microvolt = <3008000>;
+		// Oneplus change for camera module
+		vreg_l9b_2p8: ldo9 {
+			regulator-name = "vreg_l9b_2p8";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			regulator-allow-set-load;
 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
@@ -470,10 +486,12 @@
 						   RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_l12b_1p8: ldo12 {
-			regulator-name = "vreg_l12b_1p8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
+		// Oneplus changes for display
+		vreg_l12b_1p9: ldo12 {
+			regulator-name = "vreg_l12b_1p9";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1900000>;
+			qcom,init-voltage = <1900000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			regulator-allow-set-load;
 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
@@ -946,6 +964,10 @@
 	};
 };
 
+&adspslpi_mem { // Change mem range from 0x3e80000 to 0x5080000
+	reg = <0x0 0x9ee00000 0x0 0x5080000>;
+};
+
 &i2c3 {
 	status = "okay";
 
@@ -1080,7 +1102,39 @@
 };
 
 // Oneplus Smart Keyboard
-&soc {
+&qupv3_2 {
+	// Oneplus replaced normal i2c8 to UART for keyboard communication
+	uart8: serial@880000 {
+		compatible = "qcom,msm-geni-serial-hs";
+		reg = <0x00 0x880000 0x00 0x4000>;
+		reg-names = "se_phys";
+
+		interrupts-extended =
+		<&intc GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>, // Same value for i2c8
+		<&tlmm 3 IRQ_TYPE_NONE>;
+
+		clock-names = "se-clk";
+		clocks = <&gcc GCC_QUPV3_WRAP2_S0_CLK>;
+
+		interconnect-names = "qup-core", "qup-config", "qup-memory";
+		interconnects =
+		<&clk_virt MASTER_QUP_CORE_2 &clk_virt SLAVE_QUP_CORE_2>,
+		<&gem_noc MASTER_APPSS_PROC &config_noc SLAVE_QUP_2>,
+		<&aggre2_noc MASTER_QUP_2 &mc_virt  SLAVE_EBI1>;
+
+		pinctrl-names = "default", "active", "sleep", "shutdown";
+		pinctrl-0 = <&qupv3_se8_2uart_tx_default>;
+		pinctrl-1 = <&qupv3_se8_2uart_tx_active>;
+		pinctrl-2 = <&qupv3_se8_2uart_tx_default>;
+		pinctrl-3 = <&qupv3_se8_2uart_tx_default>;
+
+		qcom,wakeup-byte = <0xfd>;
+		qcom,auto-suspend-disable;
+
+		status = "okay";
+	};
+};
+&uart8 {
 	pogo_keyboard {
 		compatible = "tinno,pogo_keyboard";
 		status = "okay";
@@ -1088,7 +1142,8 @@
 		uart-tx-en-gpio = <&tlmm 83 GPIO_ACTIVE_HIGH>;
 		uart-wake-gpio = <&tlmm 96 GPIO_ACTIVE_HIGH>;
 
-		pinctrl-names = "default", "sleep", "uart_rx_set", "uart_rx_clear", "uart_wake_gpio", "pogo_power_enable", "pogo_power_disable";
+		pinctrl-names = "default", "sleep", "uart_rx_set", "uart_rx_clear",
+				"uart_wake_gpio", "pogo_power_enable", "pogo_power_disable";
 		pinctrl-0 = <&uart_rx_set>;
 		pinctrl-1 = <&uart_rx_set>;
 		pinctrl-2 = <&uart_rx_set>;
@@ -1127,7 +1182,7 @@
 /* &i2c_hub_9 {
 	status = "disabled";
 	magnachip: magnachip@10 {
-		compatible = "oplus,dhall-magnachip";
+		compatible = "oplus,dhall-ak09970";
 		reg = <0x10>;
 		vcc-supply = <&vreg_l1b_1p8>;
 		interrupt-parent = <&tlmm>;
@@ -1291,8 +1346,8 @@
  * Disable for now since there is no display panel support
  */
 &i2c_hub_0 {
-	status = "disabled";
 	backlight: ktz8868@11 {
+		status = "disabled";
 		ktz8868_bais_enn_gpio = <&tlmm 14 GPIO_ACTIVE_HIGH>;
 		ktz8868_bais_enp_gpio = <&tlmm 111 GPIO_ACTIVE_HIGH>;
 		ktz8868_hw_en_gpio = <&tlmm 15 GPIO_ACTIVE_HIGH>;
@@ -1401,17 +1456,17 @@
 	ts_int_active: ts_int_active-state {
 		pins = "gpio162";
 		function = "gpio";
-		bias-pull-up;
+		bias-disable;
 		drive-strength = <8>;
 		input-enable;
 	};
 	
-/*	hall_interrupt_input: hall-interrupt-input-state {
+	hall_interrupt_input: hall-interrupt-input-state {
 		pins = "gpio97";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
-	}; */
+	};
 
 	bt_default: bt-default-state {
 		sw-ctrl-pins {
@@ -1425,6 +1480,7 @@
 		pins = "gpio98";
 		function = "gpio";
 		drive-strength = <8>;
+		output-low;
 		bias-disable;
 	};
 
@@ -1579,6 +1635,19 @@
 		drive-strength = <8>;
 		pins = "gpio14";
 	};
+	qup_spi4_cs: qup-spi4-cs-state {
+                 pins = "gpio51";
+                 function = "qup1_se4";
+                 drive-strength = <4>;
+                 bias-disable;
+         };
+         qup_spi4_data_clk: qup-spi4-data-clk-state {
+                 /* MISO, MOSI, CLK */
+                 pins = "gpio48", "gpio49", "gpio50";
+                 function = "qup1_se4";
+                 drive-strength = <4>;
+                 bias-disable;
+	};
 };
 
 &uart14 {
@@ -1724,7 +1793,7 @@
 		pinctrl-0 = <&disp0_reset_n_active>;
 		pinctrl-1 = <&disp0_reset_n_suspend>;
 
-		vddio-supply = <&vreg_l12b_1p8>;
+		vddio-supply = <&vreg_l12b_1p9>;
 		vci-supply = <&vreg_l13b_3p0>;
 		vdd-supply = <&vreg_l11b_1p0>;
 
